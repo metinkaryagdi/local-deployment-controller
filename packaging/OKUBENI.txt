@@ -1,0 +1,66 @@
+===========================================================
+ LOCAL DEPLOYMENT CONTROLLER - HIZLI KURULUM
+===========================================================
+
+Bu klasor kendi kendine yeten bir pakettir.
+Hedef makinede .NET kurulu olmasina GEREK YOKTUR.
+
+-----------------------------------------------------------
+ ON KOSULLAR
+-----------------------------------------------------------
+ 1) Windows 10/11 64-bit
+ 2) Docker Desktop (WSL2 arka ucu) kurulu ve calisiyor
+ 3) Git for Windows kurulu (git komutu PATH uzerinde)
+
+-----------------------------------------------------------
+ KURULUM (3 ADIM)
+-----------------------------------------------------------
+ 1) Bu klasoru kalici bir yere kopyalayin.
+    Ornek:  C:\LocalDeploymentController
+
+ 2) Klasorde SAG TIK -> "Terminalde ac" (yonetici olarak)
+    ya da Baslat menusunden PowerShell'i yonetici olarak
+    acip klasore gidin.
+
+ 3) Sunu calistirin:
+
+       powershell -ExecutionPolicy Bypass -File .\setup.ps1
+
+    Betik on kosullari kontrol eder, C:\Deployments klasorunu
+    olusturur, guvenlik duvari kuralini ekler ve oturum
+    acildiginda otomatik baslamasini ayarlar.
+
+-----------------------------------------------------------
+ CALISTIRMA
+-----------------------------------------------------------
+    start.bat  dosyasina cift tiklayin.
+
+    Panel:  http://localhost:5000
+    Agdan:  http://<bu-makinenin-ip-adresi>:5000
+
+    IP adresini setup.ps1 ciktisinin sonunda "Ozet"
+    bolumunde gorursunuz.
+
+-----------------------------------------------------------
+ DOSYA INTERNET UZERINDEN GELDIYSE
+-----------------------------------------------------------
+ Windows indirilen dosyalari engelleyebilir. Klasorde
+ PowerShell acip bir kez sunu calistirin:
+
+    Get-ChildItem -Recurse | Unblock-File
+
+-----------------------------------------------------------
+ AYRINTILI ANLATIM
+-----------------------------------------------------------
+    KURULUM.md dosyasina bakin (ag profili, private depo,
+    port kurallari, sorun giderme tablosu).
+
+-----------------------------------------------------------
+ GUVENLIK UYARISI
+-----------------------------------------------------------
+ Panelde kimlik dogrulama YOKTUR ve verdiginiz git deposunu
+ bu makinede klonlayip calistirir. Panele erisebilen herkes
+ makinede kod calistirabilir.
+ Sadece guvendiginiz yerel agda kullanin, internete acmayin.
+
+===========================================================

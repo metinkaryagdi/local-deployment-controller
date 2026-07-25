@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "deploy-controller",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/DeployController/DeployController.csproj"],
+      "port": 5000
+    },
+    {
+      "name": "deploy-controller-published",
+      "runtimeExecutable": "dist/LocalDeploymentController/DeployController.exe",
+      "runtimeArgs": ["--urls", "http://127.0.0.1:5055"],
+      "port": 5055
+    }
+  ]
+}

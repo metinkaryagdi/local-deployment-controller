@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local Deployment Controller</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚢</text></svg>" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: #0b0f19; }
+    ::-webkit-scrollbar-thumb { background: #27303f; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a4557; }
+    .term-line { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-200 antialiased min-h-screen">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-30 border-b border-gray-800 bg-gray-950/90 backdrop-blur">
+    <div class="mx-auto max-w-[1600px] px-4 py-3 flex items-center gap-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="h-9 w-9 shrink-0 rounded-lg bg-indigo-600/20 border border-indigo-500/40 grid place-items-center text-lg">🚢</div>
+        <div class="min-w-0">
+          <h1 class="text-sm font-semibold text-white truncate">Local Deployment Controller</h1>
+          <p class="text-[11px] text-gray-500 truncate" id="hdr-meta">connecting…</p>
+        </div>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <span id="docker-pill" class="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gray-800 bg-gray-900 px-3 py-1 text-[11px] text-gray-400">
+          <span class="h-1.5 w-1.5 rounded-full bg-gray-600"></span><span id="docker-text">docker …</span>
+        </span>
+        <button id="btn-refresh" class="rounded-lg border border-gray-800 bg-gray-900 px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition">
+          Refresh
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-[1600px] px-4 py-5 grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
+
+    <!-- New deployment -->
+    <section class="lg:sticky lg:top-[68px] lg:self-start">
+      <div class="rounded-2xl border border-gray-800 bg-gray-900/50 shadow-xl shadow-black/30">
+        <div class="border-b border-gray-800 px-4 py-3">
+          <h2 class="text-sm font-semibold text-white">New Deployment</h2>
+          <p class="text-[11px] text-gray-500">Clone, inject config, build &amp; run with compose.</p>
+        </div>
+
+        <form id="deploy-form" class="p-4 space-y-3.5">
+          <div>
+            <label for="projectName" class="block text-[11px] font-medium uppercase tracking-wide text-gray-400 mb-1">Project name</label>
+            <input id="projectName" name="projectName" required autocomplete="off" placeholder="my-backend-service"
+              class="w-full rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40" />
+            <p class="mt-1 text-[11px] text-gray-600">Lowercase slug — used as the compose project name and folder.</p>
+          </div>
+
+          <div>
+            <label for="repoUrl" class="block text-[11px] font-medium uppercase tracking-wide text-gray-400 mb-1">Git repository URL</label>
+            <input id="repoUrl" name="repoUrl" required autocomplete="off" placeholder="https://github.com/username/repo.git"
+              class="w-full rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="branch" class="block text-[11px] font-medium uppercase tracking-wide text-gray-400 mb-1">Branch</label>
+              <input id="branch" name="branch" value="main" autocomplete="off"
+                class="w-full rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40" />
+            </div>
+            <div>
+              <label for="hostPort" class="block text-[11px] font-medium uppercase tracking-wide text-gray-400 mb-1">Host port</label>
+              <input id="hostPort" name="hostPort" type="number" min="1" max="65535" placeholder="8080"
+                class="w-full rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40" />
+            </div>
+          </div>
+
+          <div>
+            <label for="envContent" class="block text-[11px] font-medium uppercase tracking-wide text-gray-400 mb-1">Environment variables (.env)</label>
+            <textarea id="envContent" name="envContent" rows="8" spellcheck="false" placeholder="PORT=80&#10;DB_HOST=192.168.1.50&#10;NODE_ENV=production"
+              class="w-full rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 font-mono text-xs leading-relaxed text-gray-100 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40"></textarea>
+            <p class="mt-1 text-[11px] text-gray-600">Written verbatim to <code class="text-gray-500">.env</code> in the repo root before the build.</p>
+          </div>
+
+          <div class="flex items-center gap-2 pt-1">
+            <button id="btn-deploy" type="submit"
+              class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition">
+              <svg id="spinner" class="hidden h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+              <span id="btn-deploy-text">Deploy &amp; Build</span>
+            </button>
+            <button id="btn-cancel" type="button" disabled
+              class="hidden rounded-lg border border-rose-800/60 bg-rose-950/40 px-3 py-2.5 text-sm font-medium text-rose-300 hover:bg-rose-900/40 disabled:opacity-50 transition">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Deployments + terminal -->
+    <section class="min-w-0 space-y-5">
+      <div class="rounded-2xl border border-gray-800 bg-gray-900/50 shadow-xl shadow-black/30">
+        <div class="flex items-center gap-3 border-b border-gray-800 px-4 py-3">
+          <h2 class="text-sm font-semibold text-white">Deployments</h2>
+          <span id="deploy-count" class="rounded-full bg-gray-800 px-2 py-0.5 text-[11px] text-gray-400">0</span>
+          <span id="list-spinner" class="hidden text-[11px] text-gray-500">refreshing…</span>
+          <label class="ml-auto flex items-center gap-1.5 text-[11px] text-gray-500 select-none">
+            <input id="auto-refresh" type="checkbox" checked class="h-3.5 w-3.5 rounded border-gray-700 bg-gray-950 accent-indigo-600" />
+            auto-refresh
+          </label>
+        </div>
+        <div id="deployments" class="grid gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-3"></div>
+      </div>
+
+      <div class="rounded-2xl border border-gray-800 bg-gray-900/50 shadow-xl shadow-black/30 overflow-hidden">
+        <div class="flex flex-wrap items-center gap-3 border-b border-gray-800 px-4 py-2.5">
+          <h2 class="text-sm font-semibold text-white">Build Output</h2>
+          <span id="stream-state" class="inline-flex items-center gap-1.5 rounded-full border border-gray-800 bg-gray-950 px-2.5 py-0.5 text-[11px] text-gray-500">
+            <span id="stream-dot" class="h-1.5 w-1.5 rounded-full bg-gray-600"></span><span id="stream-text">idle</span>
+          </span>
+          <div class="ml-auto flex items-center gap-3">
+            <label class="flex items-center gap-1.5 text-[11px] text-gray-500 select-none">
+              <input id="autoscroll" type="checkbox" checked class="h-3.5 w-3.5 rounded border-gray-700 bg-gray-950 accent-indigo-600" />
+              autoscroll
+            </label>
+            <label class="flex items-center gap-1.5 text-[11px] text-gray-500 select-none">
+              <input id="show-time" type="checkbox" class="h-3.5 w-3.5 rounded border-gray-700 bg-gray-950 accent-indigo-600" />
+              timestamps
+            </label>
+            <button id="btn-term-download" class="rounded border border-gray-800 bg-gray-950 px-2 py-1 text-[11px] text-gray-400 hover:text-white hover:bg-gray-800 transition">Download</button>
+            <button id="btn-term-clear" class="rounded border border-gray-800 bg-gray-950 px-2 py-1 text-[11px] text-gray-400 hover:text-white hover:bg-gray-800 transition">Clear</button>
+          </div>
+        </div>
+        <div id="terminal" class="h-[22rem] overflow-y-auto bg-gray-950 px-4 py-3 font-mono text-[12px] leading-[1.45] text-green-400"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toasts" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-80"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    form: $('deploy-form'), projectName: $('projectName'), repoUrl: $('repoUrl'),
+    branch: $('branch'), hostPort: $('hostPort'), envContent: $('envContent'),
+    deployBtn: $('btn-deploy'), deployText: $('btn-deploy-text'), spinner: $('spinner'),
+    cancelBtn: $('btn-cancel'), refreshBtn: $('btn-refresh'), autoRefresh: $('auto-refresh'),
+    list: $('deployments'), count: $('deploy-count'), listSpinner: $('list-spinner'),
+    terminal: $('terminal'), autoscroll: $('autoscroll'), showTime: $('show-time'),
+    streamDot: $('stream-dot'), streamText: $('stream-text'),
+    toasts: $('toasts'), hdrMeta: $('hdr-meta'), dockerText: $('docker-text'),
+  };
+
+  const state = { source: null, jobId: null, busy: false, loading: false, lines: [] };
+  const MAX_TERM_LINES = 4000;
+  const STORAGE_KEY = 'ldc.form.v1';
+
+  // ---------------------------------------------------------------- helpers
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  async function api(path, options = {}) {
+    const response = await fetch(path, {
+      headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
+      ...options,
+    });
+
+    const text = await response.text();
+    let payload = null;
+    if (text) { try { payload = JSON.parse(text); } catch { payload = { raw: text }; } }
+
+    if (!response.ok) {
+      const message = payload?.error || payload?.detail || payload?.title || payload?.raw || response.statusText;
+      throw new Error(message);
+    }
+    return payload;
+  }
+
+  function toast(message, kind = 'info') {
+    const palette = {
+      info: 'border-gray-700 bg-gray-900 text-gray-200',
+      success: 'border-emerald-700/60 bg-emerald-950/80 text-emerald-200',
+      error: 'border-rose-700/60 bg-rose-950/80 text-rose-200',
+    };
+    const node = document.createElement('div');
+    node.className = `rounded-lg border px-3 py-2 text-xs shadow-lg shadow-black/40 ${palette[kind] || palette.info}`;
+    node.textContent = message;
+    els.toasts.appendChild(node);
+    setTimeout(() => {
+      node.style.transition = 'opacity .3s';
+      node.style.opacity = '0';
+      setTimeout(() => node.remove(), 320);
+    }, kind === 'error' ? 7000 : 3800);
+  }
+
+  const slugify = (value) => value.toLowerCase().trim()
+    .replace(/[^a-z0-9._-]+/g, '-').replace(/^[^a-z0-9]+/, '').replace(/[^a-z0-9]+$/, '');
+
+  // --------------------------------------------------------------- terminal
+
+  function termWrite(text, stream = 'stdout', time = null) {
+    const colors = {
+      stdout: 'text-green-400', stderr: 'text-amber-400',
+      error: 'text-rose-400', system: 'text-cyan-300', meta: 'text-gray-500',
+    };
+    const line = document.createElement('div');
+    line.className = `term-line ${colors[stream] || colors.stdout}`;
+    line.dataset.time = time || new Date().toISOString();
+
+    const stamp = els.showTime.checked
+      ? `<span class="text-gray-600 mr-2">${new Date(line.dataset.time).toLocaleTimeString()}</span>`
+      : '';
+    line.innerHTML = stamp + esc(text || ' ');
+
+    els.terminal.appendChild(line);
+    state.lines.push(text);
+
+    while (els.terminal.childElementCount > MAX_TERM_LINES) {
+      els.terminal.removeChild(els.terminal.firstElementChild);
+    }
+    if (els.autoscroll.checked) els.terminal.scrollTop = els.terminal.scrollHeight;
+  }
+
+  function termClear() {
+    els.terminal.replaceChildren();
+    state.lines = [];
+  }
+
+  function setStreamState(text, kind) {
+    const dots = { live: 'bg-indigo-400 animate-pulse', ok: 'bg-emerald-400', fail: 'bg-rose-500', idle: 'bg-gray-600' };
+    els.streamDot.className = `h-1.5 w-1.5 rounded-full ${dots[kind] || dots.idle}`;
+    els.streamText.textContent = text;
+  }
+
+  els.btnClear = $('btn-term-clear');
+  els.btnClear.addEventListener('click', termClear);
+  $('btn-term-download').addEventListener('click', () => {
+    const blob = new Blob([state.lines.join('\n')], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `build-${state.jobId || 'log'}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // ------------------------------------------------------------ deployments
+
+  function badge(status) {
+    const map = {
+      Running: ['bg-emerald-500/15 text-emerald-300 border-emerald-500/30', 'bg-emerald-400'],
+      Partial: ['bg-amber-500/15 text-amber-300 border-amber-500/30', 'bg-amber-400'],
+      Stopped: ['bg-rose-500/15 text-rose-300 border-rose-500/30', 'bg-rose-400'],
+      Deploying: ['bg-indigo-500/15 text-indigo-300 border-indigo-500/30', 'bg-indigo-400 animate-pulse'],
+      Missing: ['bg-gray-700/30 text-gray-400 border-gray-600/40', 'bg-gray-500'],
+    };
+    const [cls, dot] = map[status] || map.Missing;
+    return `<span class="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}">
+              <span class="h-1.5 w-1.5 rounded-full ${dot}"></span>${esc(status)}</span>`;
+  }
+
+  function card(item) {
+    const ports = item.exposedPorts?.length ? item.exposedPorts : (item.hostPort ? [item.hostPort] : []);
+    const links = ports.map((port) => {
+      const url = `http://${location.hostname}:${port}`;
+      return `<a href="${url}" target="_blank" rel="noopener"
+                 class="inline-flex items-center gap-1 rounded border border-gray-800 bg-gray-950 px-2 py-0.5 text-[11px] font-mono text-indigo-300 hover:border-indigo-600 hover:text-indigo-200 transition">${esc(url)}</a>`;
+    }).join(' ') || '<span class="text-[11px] text-gray-600">no published ports</span>';
+
+    const containers = (item.containers || []).map((c) =>
+      `<li class="flex items-center gap-2 text-[11px] text-gray-500">
+         <span class="h-1 w-1 rounded-full ${c.state === 'running' ? 'bg-emerald-400' : 'bg-gray-600'}"></span>
+         <span class="font-mono text-gray-400 truncate">${esc(c.name)}</span>
+         <span class="truncate">${esc(c.status)}</span>
+       </li>`).join('');
+
+    const updated = item.lastDeployedAt || item.lastUpdatedAt;
+    const commit = item.commit
+      ? `<span class="font-mono text-gray-400">${esc(item.commit)}</span> ${esc((item.commitSubject || '').slice(0, 60))}`
+      : '—';
+
+    const btn = 'rounded border border-gray-800 bg-gray-950 px-2.5 py-1 text-[11px] font-medium transition';
+
+    return `<article class="flex flex-col rounded-xl border border-gray-800 bg-gray-900/60 p-3.5 hover:border-gray-700 transition">
+      <div class="flex items-start gap-2">
+        <h3 class="min-w-0 flex-1 truncate text-sm font-semibold text-white" title="${esc(item.projectName)}">${esc(item.projectName)}</h3>
+        ${badge(item.status)}
+      </div>
+
+      <dl class="mt-2.5 space-y-1 text-[11px]">
+        <div class="flex gap-2"><dt class="w-16 shrink-0 text-gray-600">repo</dt>
+          <dd class="min-w-0 flex-1 truncate text-gray-400" title="${esc(item.repoUrl)}">${esc(item.repoUrl || '—')}</dd></div>
+        <div class="flex gap-2"><dt class="w-16 shrink-0 text-gray-600">branch</dt>
+          <dd class="truncate font-mono text-gray-400">${esc(item.branch || '—')}</dd></div>
+        <div class="flex gap-2"><dt class="w-16 shrink-0 text-gray-600">commit</dt>
+          <dd class="min-w-0 flex-1 truncate text-gray-500">${commit}</dd></div>
+        <div class="flex gap-2"><dt class="w-16 shrink-0 text-gray-600">updated</dt>
+          <dd class="truncate text-gray-500">${updated ? esc(new Date(updated).toLocaleString()) : '—'}</dd></div>
+      </dl>
+
+      <div class="mt-2.5 flex flex-wrap gap-1.5">${links}</div>
+      ${containers ? `<ul class="mt-2.5 space-y-1 border-t border-gray-800 pt-2">${containers}</ul>` : ''}
+
+      <div class="mt-3 flex flex-wrap gap-1.5 border-t border-gray-800 pt-3">
+        <button data-action="logs" data-name="${esc(item.projectName)}" class="${btn} text-gray-300 hover:bg-gray-800 hover:text-white">Logs</button>
+        <button data-action="restart" data-name="${esc(item.projectName)}" class="${btn} text-gray-300 hover:bg-gray-800 hover:text-white">Restart</button>
+        <button data-action="redeploy" data-name="${esc(item.projectName)}" class="${btn} text-indigo-300 hover:bg-indigo-950/60">Redeploy</button>
+        <button data-action="delete" data-name="${esc(item.projectName)}" class="${btn} ml-auto text-rose-300 hover:bg-rose-950/50">Delete</button>
+      </div>
+    </article>`;
+  }
+
+  let cache = [];
+
+  async function loadDeployments() {
+    if (state.loading) return;
+    state.loading = true;
+    els.listSpinner.classList.remove('hidden');
+
+    try {
+      const items = await api('/api/deployments');
+      cache = items;
+      els.count.textContent = items.length;
+      els.list.innerHTML = items.length
+        ? items.map(card).join('')
+        : `<div class="col-span-full rounded-xl border border-dashed border-gray-800 p-10 text-center">
+             <p class="text-sm text-gray-500">No deployments yet.</p>
+             <p class="mt-1 text-[11px] text-gray-600">Fill in the form on the left to clone and build your first project.</p>
+           </div>`;
+    } catch (error) {
+      els.list.innerHTML = `<div class="col-span-full rounded-xl border border-rose-900/60 bg-rose-950/30 p-4 text-xs text-rose-300">
+        Could not load deployments: ${esc(error.message)}</div>`;
+    } finally {
+      state.loading = false;
+      els.listSpinner.classList.add('hidden');
+    }
+  }
+
+  els.list.addEventListener('click', async (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+
+    const { action, name } = button.dataset;
+    button.disabled = true;
+
+    try {
+      if (action === 'logs') {
+        termWrite(`==> docker compose -p ${name} logs --tail=200`, 'system');
+        const result = await api(`/api/deployments/${encodeURIComponent(name)}/logs?lines=200`);
+        const lines = (result.logs || '').split('\n');
+        if (!lines.some((l) => l.trim())) termWrite('(no container output)', 'meta');
+        else lines.forEach((line) => line.length && termWrite(line, 'stdout'));
+        els.terminal.scrollTop = els.terminal.scrollHeight;
+
+      } else if (action === 'restart') {
+        termWrite(`==> docker compose -p ${name} restart`, 'system');
+        const result = await api(`/api/deployments/${encodeURIComponent(name)}/restart`, { method: 'POST' });
+        (result.output || '').split('\n').forEach((line) => line.trim() && termWrite(line, 'stdout'));
+        toast(`Restarted ${name}.`, 'success');
+        await loadDeployments();
+
+      } else if (action === 'redeploy') {
+        const item = cache.find((entry) => entry.projectName === name);
+        if (item) {
+          els.projectName.value = item.projectName;
+          els.repoUrl.value = item.repoUrl || '';
+          els.branch.value = item.branch || 'main';
+          els.hostPort.value = item.hostPort || '';
+          els.projectName.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          toast('Form filled — review the .env, then press Deploy & Build.');
+        }
+
+      } else if (action === 'delete') {
+        if (!confirm(`Delete "${name}"?\n\nThis runs "docker compose down -v" (containers AND volumes) and deletes the local checkout.`)) {
+          return;
+        }
+        termWrite(`==> docker compose -p ${name} down -v && remove directory`, 'system');
+        const result = await api(`/api/deployments/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        (result.output || '').split('\n').forEach((line) => line.trim() && termWrite(line, 'stdout'));
+        if (!result.directoryRemoved) {
+          termWrite('Directory could not be removed — a file is still locked.', 'error');
+          toast(`${name}: containers removed, folder is locked.`, 'error');
+        } else {
+          toast(`Deleted ${name}.`, 'success');
+        }
+        await loadDeployments();
+      }
+    } catch (error) {
+      termWrite(error.message, 'error');
+      toast(error.message, 'error');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  // ------------------------------------------------------------- deploying
+
+  function setBusy(busy) {
+    state.busy = busy;
+    els.deployBtn.disabled = busy;
+    els.spinner.classList.toggle('hidden', !busy);
+    els.deployText.textContent = busy ? 'Deploying…' : 'Deploy & Build';
+    els.cancelBtn.classList.toggle('hidden', !busy);
+    els.cancelBtn.disabled = !busy;
+  }
+
+  function closeStream() {
+    if (state.source) { state.source.close(); state.source = null; }
+  }
+
+  function attachStream(jobId) {
+    closeStream();
+    state.jobId = jobId;
+    setStreamState('streaming', 'live');
+
+    const source = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/stream-build-logs`);
+    state.source = source;
+
+    source.addEventListener('log', (event) => {
+      const line = JSON.parse(event.data);
+      termWrite(line.text, line.stream, line.timestamp);
+    });
+
+    source.addEventListener('status', (event) => {
+      const snapshot = JSON.parse(event.data);
+      if (snapshot.step) setStreamState(snapshot.step, 'live');
+    });
+
+    source.addEventListener('end', (event) => {
+      const snapshot = JSON.parse(event.data);
+      closeStream();
+      setBusy(false);
+
+      if (snapshot.status === 'Succeeded') {
+        setStreamState('succeeded', 'ok');
+        termWrite(`✔ ${snapshot.projectName} deployed successfully.`, 'system');
+        toast(`${snapshot.projectName} deployed.`, 'success');
+      } else {
+        setStreamState(snapshot.status.toLowerCase(), 'fail');
+        termWrite(`✖ ${snapshot.projectName}: ${snapshot.error || snapshot.status}`, 'error');
+        toast(`${snapshot.projectName}: ${snapshot.error || snapshot.status}`, 'error');
+      }
+      loadDeployments();
+    });
+
+    source.onerror = () => {
+      if (source.readyState === EventSource.CLOSED) {
+        closeStream();
+        setBusy(false);
+        setStreamState('disconnected', 'fail');
+        termWrite('Log stream disconnected.', 'error');
+        loadDeployments();
+      }
+    };
+  }
+
+  els.projectName.addEventListener('blur', () => {
+    if (els.projectName.value) els.projectName.value = slugify(els.projectName.value);
+  });
+
+  els.form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (state.busy) return;
+
+    const payload = {
+      projectName: slugify(els.projectName.value),
+      repoUrl: els.repoUrl.value.trim(),
+      branch: els.branch.value.trim() || 'main',
+      hostPort: els.hostPort.value ? Number(els.hostPort.value) : null,
+      envContent: els.envContent.value,
+    };
+
+    if (!payload.projectName) { toast('Project name is required.', 'error'); return; }
+    if (!payload.repoUrl) { toast('Repository URL is required.', 'error'); return; }
+
+    els.projectName.value = payload.projectName;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+
+    setBusy(true);
+    termClear();
+    termWrite(`==> Requesting deployment of ${payload.projectName}`, 'system');
+
+    try {
+      const accepted = await api('/api/deploy', { method: 'POST', body: JSON.stringify(payload) });
+      termWrite(`Job ${accepted.jobId} queued.`, 'meta');
+      attachStream(accepted.jobId);
+      loadDeployments();
+    } catch (error) {
+      setBusy(false);
+      setStreamState('failed', 'fail');
+      termWrite(error.message, 'error');
+      toast(error.message, 'error');
+    }
+  });
+
+  els.cancelBtn.addEventListener('click', async () => {
+    if (!state.jobId) return;
+    try {
+      await api(`/api/jobs/${encodeURIComponent(state.jobId)}/cancel`, { method: 'POST' });
+      termWrite('Cancellation requested…', 'system');
+    } catch (error) {
+      toast(error.message, 'error');
+    }
+  });
+
+  // ----------------------------------------------------------------- boot
+
+  els.refreshBtn.addEventListener('click', loadDeployments);
+  setInterval(() => { if (els.autoRefresh.checked && !state.loading) loadDeployments(); }, 8000);
+
+  (function restore() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (!saved) return;
+      els.projectName.value = saved.projectName || '';
+      els.repoUrl.value = saved.repoUrl || '';
+      els.branch.value = saved.branch || 'main';
+      els.hostPort.value = saved.hostPort || '';
+      els.envContent.value = saved.envContent || '';
+    } catch { /* ignore */ }
+  })();
+
+  (async function health() {
+    try {
+      const info = await api('/api/health');
+      els.hdrMeta.textContent = `${info.machine || location.hostname} · ${info.baseDirectory} · git ${info.gitVersion || '?'}`;
+      els.dockerText.textContent = info.dockerVersion?.startsWith('unavailable')
+        ? 'docker unavailable' : `docker ${info.dockerVersion}`;
+      const dot = document.querySelector('#docker-pill span');
+      dot.className = `h-1.5 w-1.5 rounded-full ${info.dockerVersion?.startsWith('unavailable') ? 'bg-rose-500' : 'bg-emerald-400'}`;
+    } catch {
+      els.hdrMeta.textContent = 'controller unreachable';
+    }
+  })();
+
+  termWrite('Local Deployment Controller ready. Build output will appear here.', 'meta');
+  loadDeployments();
+})();
+</script>
+</body>
+</html>
